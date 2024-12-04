@@ -2,35 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Thermometer, Droplets } from 'lucide-react';
 
+const WEBSOCKET_URL = 'ws://localhost:3001';
+
 const IoTDashboard = () => {
   const [sensorData, setSensorData] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
 
-  // Simular datos del sensor para desarrollo
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newReading = {
-        timestamp: new Date().toLocaleTimeString(),
-        temperature: 20 + Math.random() * 5,
-        humidity: 50 + Math.random() * 10
-      };
+    const ws = new WebSocket(WEBSOCKET_URL);
+
+    ws.onopen = () => {
+      console.log('Conectado al servidor WebSocket');
+      setIsConnected(true);
+      setError(null);
+    };
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      console.log('Mensaje recibido:', message);
       
       setSensorData(prev => {
-        const updated = [...prev, newReading];
-        return updated.slice(-20); // Mantener solo los últimos 20 puntos
+        const newData = [...prev, {
+          timestamp: new Date(message.timestamp).toLocaleTimeString(),
+          temperature: message.data.temperature,
+          humidity: message.data.humidity
+        }].slice(-20); // Mantener solo los últimos 20 puntos
+        return newData;
       });
-    }, 2000);
+    };
 
-    return () => clearInterval(interval);
+    ws.onerror = (error) => {
+      console.error('Error de WebSocket:', error);
+      setError('Error de conexión con el servidor');
+      setIsConnected(false);
+    };
+
+    ws.onclose = () => {
+      console.log('Desconectado del servidor WebSocket');
+      setIsConnected(false);
+    };
+
+    return () => {
+      ws.close();
+    };
   }, []);
 
   const getLatestReadings = () => {
     if (sensorData.length === 0) return { temperature: '--', humidity: '--' };
     const latest = sensorData[sensorData.length - 1];
     return {
-      temperature: latest.temperature.toFixed(1),
-      humidity: latest.humidity.toFixed(1)
+      temperature: latest.temperature?.toFixed(1) || '--',
+      humidity: latest.humidity?.toFixed(1) || '--'
     };
   };
 
@@ -41,9 +64,12 @@ const IoTDashboard = () => {
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">IoT Sensor Dashboard</h1>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span>Simulación Activa</span>
+          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+          <span>{isConnected ? 'Conectado' : 'Desconectado'}</span>
         </div>
+        {error && (
+          <div className="mt-2 text-red-500">{error}</div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -71,7 +97,7 @@ const IoTDashboard = () => {
             <LineChart data={sensorData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="timestamp" />
-              <YAxis yAxisId="temp" domain={[15, 30]} label={{ value: 'Temperatura (°C)', angle: -90, position: 'insideLeft' }} />
+              <YAxis yAxisId="temp" domain={[0, 50]} label={{ value: 'Temperatura (°C)', angle: -90, position: 'insideLeft' }} />
               <YAxis yAxisId="humidity" orientation="right" domain={[0, 100]} label={{ value: 'Humedad (%)', angle: 90, position: 'insideRight' }} />
               <Tooltip />
               <Legend />
