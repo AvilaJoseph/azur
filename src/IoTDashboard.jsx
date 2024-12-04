@@ -63,6 +63,7 @@ const IoTDashboard = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">IoT Sensor Dashboard</h1>
+        <h4>Hecho por Joseph Avila</h4>
         <div className="flex items-center gap-2">
           <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
           <span>{isConnected ? 'Conectado' : 'Desconectado'}</span>
